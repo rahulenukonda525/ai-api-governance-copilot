@@ -1,0 +1,5 @@
+{
+  "specificationType": "RAML",
+  "fileName": "synthetic-orders-api.raml",
+  "specification": "#%RAML 1.0\ntitle: Synthetic Orders API\nversion: v1\nbaseUri: https://api.example.test/v1\ndescription: A synthetic API used only for demonstration.\n/orders:\n  get:\n    description: List synthetic orders.\n    responses:\n      200:\n        description: Success.\n      400:\n        description: Invalid request.\n      500:\n        description: Unexpected error."
+}

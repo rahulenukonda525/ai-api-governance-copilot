@@ -1,0 +1,8 @@
+{
+  "timestamp": "2026-01-15T12:00:00Z",
+  "correlationId": "local-demo-001",
+  "status": 400,
+  "code": "APP:EMPTY_SPECIFICATION",
+  "message": "Specification must not be empty.",
+  "details": "Specification must not be empty."
+}

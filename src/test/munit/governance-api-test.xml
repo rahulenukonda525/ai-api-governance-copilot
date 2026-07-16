@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+    <munit:config name="governance-api-test-config"/>
+
+    <munit:test name="successful-raml-request-test"
+                description="A complete RAML request returns a perfect deterministic score.">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value='#[readUrl("classpath://requests/valid-raml-request.json", "application/json")]'
+                               mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\v1\analyses:application\json:ai-governance-copilot-api-config"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.httpStatus default 200]" is="#[MunitTools::equalTo(200)]"/>
+            <munit-tools:assert-that expression="#[payload.specificationType]" is='#[MunitTools::equalTo("RAML")]'/>
+            <munit-tools:assert-that expression="#[payload.overallScore]" is="#[MunitTools::equalTo(100)]"/>
+            <munit-tools:assert-that expression="#[sizeOf(payload.violations)]" is="#[MunitTools::equalTo(0)]"/>
+            <munit-tools:assert-that expression="#[payload.analysisId]" is="#[MunitTools::notNullValue()]"/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="empty-specification-test"
+                description="Whitespace-only specification text returns a consistent 400 error.">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value='#[readUrl("classpath://requests/empty-specification-request.json", "application/json")]'
+                               mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\v1\analyses:application\json:ai-governance-copilot-api-config"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.httpStatus]" is="#[MunitTools::equalTo(400)]"/>
+            <munit-tools:assert-that expression="#[payload.code]" is='#[MunitTools::equalTo("APP:EMPTY_SPECIFICATION")]'/>
+            <munit-tools:assert-that expression="#[payload.message]" is='#[MunitTools::equalTo("Specification must not be empty.")]'/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="unsupported-specification-type-test"
+                description="An unsupported specification type returns a consistent 400 error.">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value='#[readUrl("classpath://requests/unsupported-type-request.json", "application/json")]'
+                               mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\v1\analyses:application\json:ai-governance-copilot-api-config"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.httpStatus]" is="#[MunitTools::equalTo(400)]"/>
+            <munit-tools:assert-that expression="#[payload.code]" is='#[MunitTools::equalTo("APP:UNSUPPORTED_SPECIFICATION_TYPE")]'/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="governance-score-calculation-test"
+                description="Weighted category scores are deterministic for a partially compliant specification.">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value="#[{}]" mediaType="application/json"/>
+                <munit:variables>
+                    <munit:variable key="specificationText"
+                                    value='#[readUrl("classpath://specifications/partial-api.raml", "text/plain")]'/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="governance-rule-evaluation-subflow"/>
+            <flow-ref name="score-calculation-subflow"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.scores.designScore]" is="#[MunitTools::equalTo(100)]"/>
+            <munit-tools:assert-that expression="#[vars.scores.securityScore]" is="#[MunitTools::equalTo(0)]"/>
+            <munit-tools:assert-that expression="#[vars.scores.documentationScore]" is="#[MunitTools::equalTo(50)]"/>
+            <munit-tools:assert-that expression="#[vars.scores.overallScore]" is="#[MunitTools::equalTo(53)]"/>
+        </munit:validation>
+    </munit:test>
+</mule>

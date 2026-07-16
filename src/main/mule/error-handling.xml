@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <error-handler name="global-api-error-handler">
+        <on-error-continue type="APP:INVALID_REQUEST,APP:EMPTY_SPECIFICATION,APP:UNSUPPORTED_SPECIFICATION_TYPE,APIKIT:BAD_REQUEST,APIKIT:NOT_ACCEPTABLE,APIKIT:UNSUPPORTED_MEDIA_TYPE">
+            <set-variable variableName="httpStatus" value='#[if (error.errorType.identifier == "UNSUPPORTED_MEDIA_TYPE") 415 else 400]'/>
+            <set-variable variableName="errorCode" value='#[error.errorType.namespace ++ ":" ++ error.errorType.identifier]'/>
+            <set-variable variableName="errorMessage" value='#[if (error.errorType.namespace == "APP") error.description else "The API request is invalid."]'/>
+            <set-variable variableName="errorDetails" value='#[if (error.errorType.namespace == "APP") error.description else "Review the request against the published RAML contract."]'/>
+            <logger level="WARN"
+                    category="io.github.governancecopilot.audit"
+                    message='#["Governance request rejected; correlationId=" ++ correlationId ++ "; errorType=" ++ vars.errorCode]'/>
+            <ee:transform>
+                <ee:message>
+                    <ee:set-payload resource="dw/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+        </on-error-continue>
+        <on-error-continue type="ANY">
+            <set-variable variableName="httpStatus" value="500"/>
+            <set-variable variableName="errorCode" value="APP:INTERNAL_ERROR"/>
+            <set-variable variableName="errorMessage" value="An unexpected error occurred while analyzing the specification."/>
+            <set-variable variableName="errorDetails" value="Use the correlation ID when investigating server logs."/>
+            <logger level="ERROR"
+                    category="io.github.governancecopilot.audit"
+                    message='#["Governance analysis failed; correlationId=" ++ correlationId ++ "; errorType=" ++ error.errorType.namespace ++ ":" ++ error.errorType.identifier]'/>
+            <ee:transform>
+                <ee:message>
+                    <ee:set-payload resource="dw/error-response.dwl"/>
+                </ee:message>
+            </ee:transform>
+        </on-error-continue>
+    </error-handler>
+</mule>

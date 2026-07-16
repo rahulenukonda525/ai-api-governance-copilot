@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+
+    <sub-flow name="specification-analysis-subflow">
+        <flow-ref name="governance-rule-evaluation-subflow"/>
+        <flow-ref name="score-calculation-subflow"/>
+        <flow-ref name="report-generation-subflow"/>
+        <logger level="INFO"
+                category="io.github.governancecopilot.audit"
+                message='#[%dw 2.0&#10;output application/json&#10;---&#10;"Governance analysis completed; correlationId=" ++ correlationId ++ "; analysisId=" ++ payload.analysisId ++ "; overallScore=" ++ (payload.overallScore as String)]'/>
+    </sub-flow>
+
+    <sub-flow name="governance-rule-evaluation-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="ruleResults" resource="dw/evaluate-rules.dwl"/>
+            </ee:variables>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="score-calculation-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="scores" resource="dw/calculate-scores.dwl"/>
+            </ee:variables>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="report-generation-subflow">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload resource="dw/build-report.dwl"/>
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+</mule>

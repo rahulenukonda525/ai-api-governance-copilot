@@ -1,0 +1,5 @@
+{
+  "specificationType": "OPENAPI",
+  "fileName": "synthetic-inventory-api.yaml",
+  "specification": "openapi: 3.0.3\ninfo:\n  title: Synthetic Inventory API\n  version: 1.0.0\n  description: A synthetic API used only for demonstration.\nservers:\n  - url: https://api.example.test/v1\npaths:\n  /items:\n    get:\n      description: List synthetic inventory items.\n      responses:\n        '200':\n          description: Success.\n        '400':\n          description: Invalid request.\n        '500':\n          description: Unexpected error."
+}
