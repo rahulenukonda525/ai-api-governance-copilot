@@ -1,0 +1,5 @@
+{
+  "specificationType": "RAML",
+  "fileName": "orders-api.raml",
+  "specification": "#%RAML 1.0\ntitle: Orders API\nversion: v1\nbaseUri: https://api.example.test/v1\ndescription: Synthetic API used for governance tests.\n/orders:\n  get:\n    description: List synthetic orders.\n    responses:\n      200:\n        body:\n          application/json:\n      400:\n        description: Invalid request.\n      500:\n        description: Server error."
+}

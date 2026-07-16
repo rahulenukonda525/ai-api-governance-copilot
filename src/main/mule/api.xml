@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="         http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd         http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd         http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd">
+    <flow name="ai-governance-copilot-api-main">
+        <http:listener config-ref="http-listener-config" path="${api.base.path}">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[{
+                    'Content-Type': 'application/json',
+                    'X-Correlation-ID': correlationId
+                } ++ (vars.outboundHeaders default {})]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[{
+                    'Content-Type': 'application/json',
+                    'X-Correlation-ID': correlationId
+                }]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <logger level="INFO" category="io.github.governancecopilot.audit" message="#[&quot;Governance request received; correlationId=&quot; ++ correlationId ++ &quot;; method=&quot; ++ (attributes.method default &quot;UNKNOWN&quot;) ++ &quot;; path=&quot; ++ (attributes.requestPath default &quot;UNKNOWN&quot;)]" />
+        <apikit:router config-ref="ai-governance-copilot-api-config" />
+        <error-handler ref="global-api-error-handler" />
+    </flow>
+    <flow name="apiFlow" doc:id="1cc98e69-a80c-493c-88b9-8ac61790ca5f" >
+		<http:listener doc:name="Listener" doc:id="0a82101b-1417-462a-8401-74ae63febd36" config-ref="http-listener-config" path="/console/*" >
+			<http:response statusCode="#[vars.httpStatus default 200]" >
+				<http:headers ><![CDATA[#[{
+                    'Content-Type': 'application/json',
+                    'X-Correlation-ID': correlationId
+                } ++ (vars.outboundHeaders default {})]]]></http:headers>
+			</http:response>
+			<http:error-response statusCode="#[vars.httpStatus default 500]" >
+				<http:body ><![CDATA[#[payload]]]></http:body>
+				<http:headers ><![CDATA[#[{
+                    'Content-Type': 'application/json',
+                    'X-Correlation-ID': correlationId
+                }]]]></http:headers>
+			</http:error-response>
+		</http:listener>
+		<apikit:console doc:name="APIkit Console" doc:id="438e13f1-5c32-442e-9b13-04352b9bc7a5" config-ref="ai-governance-copilot-api-config"/>
+	</flow>
+	<flow name="post:\v1\analyses:application\json:ai-governance-copilot-api-config">
+        <flow-ref name="request-validation-subflow" />
+        <flow-ref name="specification-analysis-subflow" />
+        <error-handler ref="global-api-error-handler" />
+    </flow>
+</mule>

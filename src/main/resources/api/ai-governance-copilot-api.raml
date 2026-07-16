@@ -1,0 +1,99 @@
+#%RAML 1.0
+title: AI Governance Copilot API
+version: v1
+description: |
+  An independent reference API that performs deterministic governance analysis
+  of RAML 1.0 and OpenAPI specification text. Phase 1 does not use AI.
+baseUri: http://localhost:8081/api
+protocols: [ HTTP ]
+mediaType: application/json
+
+types:
+  AnalysisRequest:
+    type: object
+    additionalProperties: false
+    properties:
+      specificationType:
+        type: string
+        enum: [ RAML, OPENAPI ]
+        description: The format of the submitted API specification.
+      specification:
+        type: string
+        minLength: 1
+        description: Complete RAML 1.0 or OpenAPI document supplied as text.
+      fileName?:
+        type: string
+        maxLength: 255
+        description: Optional original file name used only as report metadata.
+    example:
+      specificationType: RAML
+      specification: "#%RAML 1.0\ntitle: Orders API\nversion: v1"
+      fileName: orders-api.raml
+
+  Violation:
+    type: object
+    properties:
+      ruleId: string
+      category: string
+      severity: string
+      message: string
+
+  Recommendation:
+    type: object
+    properties:
+      ruleId: string
+      message: string
+
+  GovernanceReport:
+    type: object
+    properties:
+      analysisId: string
+      fileName: string
+      specificationType:
+        enum: [ RAML, OPENAPI ]
+      timestamp: datetime
+      overallScore: integer
+      designScore: integer
+      securityScore: integer
+      documentationScore: integer
+      violations: Violation[]
+      recommendations: Recommendation[]
+
+  ErrorResponse:
+    type: object
+    properties:
+      timestamp: datetime
+      correlationId: string
+      status: integer
+      code: string
+      message: string
+      details?: string
+
+/v1:
+  /analyses:
+    post:
+      description: Analyze RAML 1.0 or OpenAPI text with deterministic governance rules.
+      body:
+        application/json:
+          type: AnalysisRequest
+      responses:
+        200:
+          description: Governance analysis completed successfully.
+          body:
+            application/json:
+              type: GovernanceReport
+        400:
+          description: The request is missing or invalid.
+          body:
+            application/json:
+              type: ErrorResponse
+        415:
+          description: The request media type is unsupported.
+          body:
+            application/json:
+              type: ErrorResponse
+        500:
+          description: An unexpected processing error occurred.
+          body:
+            application/json:
+              type: ErrorResponse

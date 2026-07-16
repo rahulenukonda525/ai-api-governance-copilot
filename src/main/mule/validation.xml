@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+
+    <sub-flow name="request-validation-subflow">
+        <choice>
+            <when expression="#[payload == null or !(payload is Object)]">
+                <raise-error type="APP:INVALID_REQUEST" description="Request body must be a JSON object."/>
+            </when>
+            <when expression='#[isEmpty(trim((payload.specification default "") as String))]'>
+                <raise-error type="APP:EMPTY_SPECIFICATION" description="Specification must not be empty."/>
+            </when>
+            <when expression='#[!(["RAML", "OPENAPI"] contains upper((payload.specificationType default "") as String))]'>
+                <raise-error type="APP:UNSUPPORTED_SPECIFICATION_TYPE" description="Specification type must be RAML or OPENAPI."/>
+            </when>
+        </choice>
+        <set-variable variableName="specificationText" value='#[payload.specification as String]'/>
+        <set-variable variableName="specificationType" value='#[upper(payload.specificationType as String)]'/>
+        <set-variable variableName="fileName"
+                      value='#[if (isEmpty(trim((payload.fileName default "") as String))) if (vars.specificationType == "RAML") "unnamed-api.raml" else "unnamed-api.yaml" else payload.fileName as String]'/>
+        <logger level="INFO"
+                category="io.github.governancecopilot.audit"
+                message='#[%dw 2.0&#10;output application/json&#10;---&#10;"Governance request validated; correlationId=" ++ correlationId ++ "; type=" ++ vars.specificationType ++ "; fileName=" ++ vars.fileName]'/>
+    </sub-flow>
+</mule>
