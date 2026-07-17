@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+
+    <http:request-config name="Ollama_HTTP_Request_Config" responseTimeout="6000000">
+        <http:request-connection host="${ai.host}"
+                                 port="${ai.port}"
+                                 connectionIdleTimeout="${ai.timeout}"/>
+    </http:request-config>
+
+    <sub-flow name="ai-analysis-orchestration-subflow">
+        <choice>
+            <when expression="#[!((vars.aiEnabledOverride default (lower(Mule::p('ai.enabled')) == 'true')) as Boolean)]">
+                <set-variable variableName="aiStatus" value="DISABLED"/>
+                <set-variable variableName="aiStatusSummary" value="AI-assisted review is disabled."/>
+                <flow-ref name="ai-status-response-subflow"/>
+            </when>
+            <otherwise>
+                <set-variable variableName="aiStartedAt" value='#[now() as Number {unit: "milliseconds"}]'/>
+                <try>
+                    <flow-ref name="ai-configuration-validation-subflow"/>
+                    <flow-ref name="ai-prompt-construction-subflow"/>
+                    <flow-ref name="ai-internal-request-construction-subflow"/>
+                    <flow-ref name="ollama-request-construction-subflow"/>
+                    <flow-ref name="ollama-ai-service-subflow"/>
+                    <flow-ref name="ai-structured-response-parsing-subflow"/>
+                    <flow-ref name="ai-response-validation-subflow"/>
+                    <flow-ref name="ai-recommendation-normalization-subflow"/>
+                    <set-variable variableName="aiExecutionTimeMs" value='#[((now() as Number {unit: "milliseconds"}) - vars.aiStartedAt)]'/>
+                    <flow-ref name="ai-safe-success-logging-subflow"/>
+                    <error-handler>
+                        <on-error-continue type="ANY">
+                            <set-variable variableName="aiExecutionTimeMs" value='#[((now() as Number {unit: "milliseconds"}) - vars.aiStartedAt)]'/>
+                            <set-variable variableName="aiProviderErrorType" value='#[error.errorType.namespace ++ ":" ++ error.errorType.identifier]'/>
+                            <flow-ref name="ai-error-classification-subflow"/>
+                            <flow-ref name="ai-status-response-subflow"/>
+                            <flow-ref name="ai-safe-failure-logging-subflow"/>
+                        </on-error-continue>
+                    </error-handler>
+                </try>
+            </otherwise>
+        </choice>
+    </sub-flow>
+
+    <sub-flow name="ai-configuration-validation-subflow">
+        <choice>
+            <when expression="#[isEmpty(trim(Mule::p('ai.host')))]">
+                <raise-error type="APP:AI_CONFIGURATION" description="An Ollama host must be configured."/>
+            </when>
+            <when expression="#[(Mule::p('ai.port') as Number) &lt; 1 or (Mule::p('ai.port') as Number) &gt; 65535]">
+                <raise-error type="APP:AI_CONFIGURATION" description="The Ollama port is outside the supported range."/>
+            </when>
+            <when expression="#[isEmpty(trim(Mule::p('ai.model')))]">
+                <raise-error type="APP:AI_CONFIGURATION" description="An Ollama model must be configured."/>
+            </when>
+            <when expression="#[(Mule::p('ai.timeout') as Number) &lt;= 0 or (Mule::p('ai.temperature') as Number) &lt; 0 or (Mule::p('ai.temperature') as Number) &gt; 2]">
+                <raise-error type="APP:AI_CONFIGURATION" description="Ollama timeout or temperature is outside supported bounds."/>
+            </when>
+        </choice>
+    </sub-flow>
+
+    <sub-flow name="ai-prompt-construction-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="aiPrompt" resource="dw/construct-ai-prompt.dwl"/>
+            </ee:variables>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="ai-internal-request-construction-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="aiInternalRequest" resource="dw/build-ai-internal-request.dwl"/>
+            </ee:variables>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="ollama-request-construction-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="aiProviderPayload" resource="dw/build-ollama-chat-request.dwl"/>
+            </ee:variables>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="ollama-ai-service-subflow">
+        <http:request config-ref="Ollama_HTTP_Request_Config"
+                      method="POST"
+                      path="/api/chat"
+                      responseTimeout="${ai.timeout}"
+                      requestStreamingMode="NEVER"
+                      target="aiProviderResult">
+            <http:body>#[vars.aiProviderPayload]</http:body>
+            <http:headers>#[{
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Correlation-ID': correlationId
+            }]</http:headers>
+        </http:request>
+    </sub-flow>
+
+    <sub-flow name="ai-structured-response-parsing-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="aiParsedResponse" resource="dw/parse-ollama-chat-response.dwl"/>
+            </ee:variables>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="ai-response-validation-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="aiValidationErrors" resource="dw/validate-ai-response.dwl"/>
+            </ee:variables>
+        </ee:transform>
+        <choice>
+            <when expression="#[!isEmpty(vars.aiValidationErrors)]">
+                <raise-error type="APP:AI_INVALID_RESPONSE" description="AI response failed advisory-output validation."/>
+            </when>
+        </choice>
+    </sub-flow>
+
+    <sub-flow name="ai-recommendation-normalization-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="aiAnalysis" resource="dw/normalize-ai-analysis.dwl"/>
+            </ee:variables>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="ai-status-response-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="aiAnalysis" resource="dw/build-ai-status.dwl"/>
+            </ee:variables>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="ai-error-classification-subflow">
+        <ee:transform>
+            <ee:variables>
+                <ee:set-variable variableName="aiErrorClassification" resource="dw/classify-ai-error.dwl"/>
+            </ee:variables>
+        </ee:transform>
+        <set-variable variableName="aiStatus" value="#[vars.aiErrorClassification.status]"/>
+        <set-variable variableName="aiStatusSummary" value="#[vars.aiErrorClassification.summary]"/>
+    </sub-flow>
+
+    <sub-flow name="ai-safe-failure-logging-subflow">
+        <logger level="WARN" category="io.github.governancecopilot.ai"
+                message='#["AI review did not complete; correlationId=" ++ correlationId ++ "; provider=OLLAMA; model=" ++ Mule::p("ai.model") ++ "; executionTimeMs=" ++ (vars.aiExecutionTimeMs as String) ++ "; findingCount=0; status=" ++ vars.aiStatus]'/>
+    </sub-flow>
+
+    <sub-flow name="ai-safe-success-logging-subflow">
+        <logger level="INFO" category="io.github.governancecopilot.ai"
+                message='#["AI review completed; correlationId=" ++ correlationId ++ "; provider=OLLAMA; model=" ++ Mule::p("ai.model") ++ "; executionTimeMs=" ++ (vars.aiExecutionTimeMs as String) ++ "; findingCount=" ++ (sizeOf(vars.aiAnalysis.findings) as String)]'/>
+    </sub-flow>
+</mule>

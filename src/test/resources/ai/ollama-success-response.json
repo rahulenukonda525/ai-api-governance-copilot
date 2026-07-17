@@ -1,0 +1,10 @@
+{
+  "model": "synthetic-test-model",
+  "created_at": "2026-01-15T12:00:00Z",
+  "message": {
+    "role": "assistant",
+    "content": "{\"summary\":\"The synthetic API is generally consistent but should declare authentication.\",\"confidence\":0.87,\"findings\":[{\"category\":\"security\",\"severity\":\"high\",\"title\":\"Authentication is not declared\",\"description\":\"The specification does not define a security scheme.\",\"recommendation\":\"Declare an appropriate authentication scheme and enforce it at the gateway.\",\"location\":\"/orders\"}],\"recommendations\":[\"Define reusable standardized error types.\"]}"
+  },
+  "done": true,
+  "total_duration": 125000000
+}

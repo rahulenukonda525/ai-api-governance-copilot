@@ -12,6 +12,7 @@ Maintainers should acknowledge a report within seven calendar days when possible
 
 ## Operational warning
 
-Phase 1 has no authentication, authorization, rate limiting, persistence, malware scanning, or full parser-level defenses. Run it only in a controlled development environment. Before any broader deployment, add gateway-enforced authentication, request-size limits, TLS, rate limits, secure configuration management, dependency scanning, and operational monitoring.
+This reference implementation has no inbound authentication, authorization, rate limiting, persistence, malware scanning, or full parser-level defenses. Run it only in a controlled development environment. AI is disabled by default. Enabling it sends specification content and deterministic findings to the configured Ollama process. Keep Ollama on trusted interfaces and never submit specifications containing secrets. Before any broader deployment, add gateway-enforced authentication, request-size limits, TLS, rate limits, secure configuration management, dependency scanning, and operational monitoring.
 
 See [`docs/security-model.md`](docs/security-model.md) for threats and controls.
+See [`docs/prompt-injection-threat-model.md`](docs/prompt-injection-threat-model.md) for AI-specific threats and residual risks.

@@ -8,7 +8,8 @@ Thank you for helping improve MuleSoft AI API Governance.
 - Do not submit employer, customer, or other third-party proprietary code or specifications.
 - Never commit credentials, API keys, organization IDs, private hostnames, certificates, or production URLs.
 - Keep governance rules deterministic, documented, and testable.
-- Do not add AI services, databases, or deployment targets as part of Phase 1 maintenance.
+- Keep provider-specific AI payloads and parsing isolated behind the internal provider-neutral model.
+- Use mocked synthetic provider responses; tests must never call a live AI service.
 - Do not describe the project as production-ready.
 
 ## Development workflow

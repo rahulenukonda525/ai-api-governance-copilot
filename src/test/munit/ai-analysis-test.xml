@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+        http://www.mulesoft.org/schema/mule/munit-tools http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+
+    <munit:config name="ai-analysis-test-config"/>
+
+    <munit:test name="ai-disabled-fallback-test" description="AI disabled returns the deterministic report with DISABLED advisory status.">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value='#[readUrl("classpath://requests/valid-raml-request.json", "application/json")]' mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\v1\analyses:application\json:ai-governance-copilot-api-config"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.aiAnalysis.status]" is='#[MunitTools::equalTo("DISABLED")]'/>
+            <munit-tools:assert-that expression="#[payload.overallScore]" is="#[MunitTools::equalTo(100)]"/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="successful-mocked-ollama-response-test" description="A mocked Ollama response is parsed, validated, normalized, and appended without changing deterministic scores.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request">
+                <munit-tools:then-return payload='#[readUrl("classpath://ai/ollama-success-response.json", "application/json")]' mediaType="application/json"/>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value='#[readUrl("classpath://requests/valid-raml-request.json", "application/json")]' mediaType="application/json"/>
+                <munit:variables>
+                    <munit:variable key="aiEnabledOverride" value="#[true]"/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="post:\v1\analyses:application\json:ai-governance-copilot-api-config"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.aiAnalysis.status]" is='#[MunitTools::equalTo("COMPLETED")]'/>
+            <munit-tools:assert-that expression="#[payload.aiAnalysis.provider]" is='#[MunitTools::equalTo("OLLAMA")]'/>
+            <munit-tools:assert-that expression="#[payload.aiAnalysis.findings[0].severity]" is='#[MunitTools::equalTo("HIGH")]'/>
+            <munit-tools:assert-that expression="#[payload.aiAnalysis.confidence]" is="#[MunitTools::equalTo(0.87)]"/>
+            <munit-tools:assert-that expression="#[payload.overallScore]" is="#[MunitTools::equalTo(100)]"/>
+            <munit-tools:assert-that expression="#[payload.designScore]" is="#[MunitTools::equalTo(100)]"/>
+            <munit-tools:verify-call processor="http:request" times="1"/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="ollama-timeout-classification-test" description="An Ollama timeout maps to TIMEOUT without raw provider details.">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value="#[{}]" mediaType="application/json"/>
+                <munit:variables>
+                    <munit:variable key="aiProviderErrorType" value='#["HTTP:TIMEOUT"]'/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="ai-error-classification-subflow"/>
+            <flow-ref name="ai-status-response-subflow"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.aiAnalysis.status]" is='#[MunitTools::equalTo("TIMEOUT")]'/>
+            <munit-tools:assert-that expression="#[sizeOf(vars.aiAnalysis.findings)]" is="#[MunitTools::equalTo(0)]"/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="ollama-http-failure-test" description="An Ollama HTTP failure maps to the sanitized FAILED status.">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value="#[{}]" mediaType="application/json"/>
+                <munit:variables>
+                    <munit:variable key="aiProviderErrorType" value='#["HTTP:CONNECTIVITY"]'/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="ai-error-classification-subflow"/>
+            <flow-ref name="ai-status-response-subflow"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[vars.aiAnalysis.status]" is='#[MunitTools::equalTo("FAILED")]'/>
+            <munit-tools:assert-that expression="#[vars.aiAnalysis.summary contains 'credential']" is="#[MunitTools::equalTo(false)]"/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="invalid-json-ollama-response-test" description="Mocked invalid Ollama JSON fails open with deterministic results and INVALID_RESPONSE status.">
+        <munit:behavior>
+            <munit-tools:mock-when processor="http:request">
+                <munit-tools:then-return payload='#[readUrl("classpath://ai/ollama-invalid-json-response.json", "application/json")]' mediaType="application/json"/>
+            </munit-tools:mock-when>
+        </munit:behavior>
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value='#[readUrl("classpath://requests/valid-raml-request.json", "application/json")]' mediaType="application/json"/>
+                <munit:variables>
+                    <munit:variable key="aiEnabledOverride" value="#[true]"/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="post:\v1\analyses:application\json:ai-governance-copilot-api-config"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.aiAnalysis.status]" is='#[MunitTools::equalTo("INVALID_RESPONSE")]'/>
+            <munit-tools:assert-that expression="#[payload.overallScore]" is="#[MunitTools::equalTo(100)]"/>
+            <munit-tools:verify-call processor="http:request" times="1"/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="unsupported-severity-validation-test" expectedErrorType="APP:AI_INVALID_RESPONSE">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value="#[{}]" mediaType="application/json"/>
+                <munit:variables>
+                    <munit:variable key="aiParsedResponse" value='#[{summary: "Review", confidence: 0.7, findings: [{category: "SECURITY", severity: "URGENT", title: "Title", description: "Description", recommendation: "Recommendation"}], recommendations: ["Review authentication."]}]'/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="ai-response-validation-subflow"/>
+        </munit:execution>
+    </munit:test>
+
+    <munit:test name="confidence-outside-range-validation-test" expectedErrorType="APP:AI_INVALID_RESPONSE">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value="#[{}]" mediaType="application/json"/>
+                <munit:variables>
+                    <munit:variable key="aiParsedResponse" value='#[{summary: "Review", confidence: 1.2, findings: [], recommendations: ["Review authentication."]}]'/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="ai-response-validation-subflow"/>
+        </munit:execution>
+    </munit:test>
+
+    <munit:test name="excessive-findings-validation-test" expectedErrorType="APP:AI_INVALID_RESPONSE">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value="#[{}]" mediaType="application/json"/>
+                <munit:variables>
+                    <munit:variable key="aiParsedResponse" value='#[{summary: "Review", confidence: 0.5, findings: (1 to 21) map {category: "DESIGN", severity: "LOW", title: "Finding", description: "Description", recommendation: "Recommendation"}, recommendations: ["Review consistency."]}]'/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="ai-response-validation-subflow"/>
+        </munit:execution>
+    </munit:test>
+
+    <munit:test name="ai-failure-deterministic-fallback-test" description="AI failure aggregation preserves every deterministic score.">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value="#[{}]" mediaType="application/json"/>
+                <munit:variables>
+                    <munit:variable key="deterministicReport" value='#[{analysisId: "synthetic-id", fileName: "api.raml", specificationType: "RAML", timestamp: now(), overallScore: 53, designScore: 100, securityScore: 0, documentationScore: 50, violations: [], recommendations: []}]'/>
+                    <munit:variable key="aiProviderErrorType" value='#["HTTP:CONNECTIVITY"]'/>
+                </munit:variables>
+            </munit:set-event>
+            <flow-ref name="ai-error-classification-subflow"/>
+            <flow-ref name="ai-status-response-subflow"/>
+            <flow-ref name="analysis-result-aggregation-subflow"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression="#[payload.aiAnalysis.status]" is='#[MunitTools::equalTo("FAILED")]'/>
+            <munit-tools:assert-that expression="#[payload.overallScore]" is="#[MunitTools::equalTo(53)]"/>
+            <munit-tools:assert-that expression="#[payload.designScore]" is="#[MunitTools::equalTo(100)]"/>
+            <munit-tools:assert-that expression="#[payload.securityScore]" is="#[MunitTools::equalTo(0)]"/>
+            <munit-tools:assert-that expression="#[payload.documentationScore]" is="#[MunitTools::equalTo(50)]"/>
+        </munit:validation>
+    </munit:test>
+
+    <munit:test name="specification-content-not-returned-or-logged-test" description="A marker in specification content is not returned and logging uses safe metadata expressions.">
+        <munit:execution>
+            <munit:set-event>
+                <munit:payload value='#[{specificationType: "RAML", fileName: "safe.raml", specification: "#%RAML 1.0\ntitle: Safe API\nversion: v1\ndescription: DO_NOT_LOG_SYNTHETIC_MARKER"}]' mediaType="application/json"/>
+            </munit:set-event>
+            <flow-ref name="post:\v1\analyses:application\json:ai-governance-copilot-api-config"/>
+        </munit:execution>
+        <munit:validation>
+            <munit-tools:assert-that expression='#[write(payload, "application/json") contains "DO_NOT_LOG_SYNTHETIC_MARKER"]' is="#[MunitTools::equalTo(false)]"/>
+            <munit-tools:verify-call processor="logger" atLeast="1"/>
+        </munit:validation>
+    </munit:test>
+</mule>

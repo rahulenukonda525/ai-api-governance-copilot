@@ -1,0 +1,22 @@
+{
+  "enabled": true,
+  "status": "COMPLETED",
+  "provider": "OLLAMA",
+  "model": "gemma3",
+  "summary": "The synthetic API is understandable but should declare authentication.",
+  "confidence": 0.87,
+  "findings": [
+    {
+      "category": "SECURITY",
+      "severity": "HIGH",
+      "title": "Authentication is not declared",
+      "description": "The specification does not define a security scheme.",
+      "recommendation": "Declare an appropriate authentication scheme and enforce it at the gateway.",
+      "location": "/orders"
+    }
+  ],
+  "recommendations": [
+    "Define reusable standardized error types."
+  ],
+  "advisoryDisclaimer": "AI-generated findings are advisory, may be incomplete or incorrect, and never replace the authoritative deterministic governance results or human review."
+}

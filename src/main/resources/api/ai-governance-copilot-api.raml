@@ -2,8 +2,8 @@
 title: AI Governance Copilot API
 version: v1
 description: |
-  An independent reference API that performs deterministic governance analysis
-  of RAML 1.0 and OpenAPI specification text. Phase 1 does not use AI.
+  An independent reference API that performs authoritative deterministic
+  governance analysis and can add an optional advisory AI review.
 baseUri: http://localhost:8081/api
 protocols: [ HTTP ]
 mediaType: application/json
@@ -20,6 +20,7 @@ types:
       specification:
         type: string
         minLength: 1
+        maxLength: 50000
         description: Complete RAML 1.0 or OpenAPI document supplied as text.
       fileName?:
         type: string
@@ -44,6 +45,37 @@ types:
       ruleId: string
       message: string
 
+  AiFinding:
+    type: object
+    additionalProperties: false
+    properties:
+      category:
+        enum: [ DESIGN, SECURITY, DOCUMENTATION, MAINTAINABILITY, CONSISTENCY, ERROR_HANDLING ]
+      severity:
+        enum: [ CRITICAL, HIGH, MEDIUM, LOW, INFO ]
+      title: string
+      description: string
+      recommendation: string
+      location?: string
+
+  AiAnalysis:
+    type: object
+    additionalProperties: false
+    properties:
+      enabled: boolean
+      status:
+        enum: [ COMPLETED, DISABLED, FAILED, INVALID_RESPONSE, TIMEOUT ]
+      provider: string
+      model: string
+      summary: string
+      confidence:
+        type: number
+        minimum: 0
+        maximum: 1
+      findings: AiFinding[]
+      recommendations: string[]
+      advisoryDisclaimer: string
+
   GovernanceReport:
     type: object
     properties:
@@ -58,6 +90,7 @@ types:
       documentationScore: integer
       violations: Violation[]
       recommendations: Recommendation[]
+      aiAnalysis?: AiAnalysis
 
   ErrorResponse:
     type: object
@@ -72,7 +105,7 @@ types:
 /v1:
   /analyses:
     post:
-      description: Analyze RAML 1.0 or OpenAPI text with deterministic governance rules.
+      description: Analyze RAML 1.0 or OpenAPI text with authoritative deterministic rules and an optional advisory AI review.
       body:
         application/json:
           type: AnalysisRequest
