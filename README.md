@@ -1,6 +1,6 @@
 # MuleSoft AI API Governance
 
-MuleSoft AI API Governance Copilot is an open-source reference implementation for evaluating RAML 1.0 and OpenAPI specifications. Its deterministic governance rules remain authoritative. Phase 2 adds an optional, fail-open, AI-assisted review whose findings are always marked advisory.
+MuleSoft AI API Governance Copilot is an open-source reference implementation for evaluating RAML 1.0 and OpenAPI specifications. Its deterministic governance rules remain authoritative. 
 
 > **Disclaimer:** This is an independent reference implementation. It contains no proprietary employer or customer code, data, credentials, organization identifiers, or production URLs. All examples are synthetic. It is not production-ready.
 
