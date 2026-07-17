@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for helping improve MuleSoft AI API Governance Copilot.
+Thank you for helping improve MuleSoft AI API Governance.
 
 ## Ground rules
 
