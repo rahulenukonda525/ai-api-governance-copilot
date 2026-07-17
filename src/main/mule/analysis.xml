@@ -10,6 +10,9 @@
         <flow-ref name="governance-rule-evaluation-subflow"/>
         <flow-ref name="score-calculation-subflow"/>
         <flow-ref name="report-generation-subflow"/>
+        <set-variable variableName="deterministicReport" value="#[payload]"/>
+        <flow-ref name="ai-analysis-orchestration-subflow"/>
+        <flow-ref name="analysis-result-aggregation-subflow"/>
         <logger level="INFO"
                 category="io.github.governancecopilot.audit"
                 message='#[%dw 2.0&#10;output application/json&#10;---&#10;"Governance analysis completed; correlationId=" ++ correlationId ++ "; analysisId=" ++ payload.analysisId ++ "; overallScore=" ++ (payload.overallScore as String)]'/>
@@ -35,6 +38,14 @@
         <ee:transform>
             <ee:message>
                 <ee:set-payload resource="dw/build-report.dwl"/>
+            </ee:message>
+        </ee:transform>
+    </sub-flow>
+
+    <sub-flow name="analysis-result-aggregation-subflow">
+        <ee:transform>
+            <ee:message>
+                <ee:set-payload resource="dw/aggregate-analysis.dwl"/>
             </ee:message>
         </ee:transform>
     </sub-flow>

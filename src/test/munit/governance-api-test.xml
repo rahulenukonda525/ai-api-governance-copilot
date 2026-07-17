@@ -25,6 +25,8 @@
             <munit-tools:assert-that expression="#[payload.overallScore]" is="#[MunitTools::equalTo(100)]"/>
             <munit-tools:assert-that expression="#[sizeOf(payload.violations)]" is="#[MunitTools::equalTo(0)]"/>
             <munit-tools:assert-that expression="#[payload.analysisId]" is="#[MunitTools::notNullValue()]"/>
+            <munit-tools:assert-that expression="#[payload.aiAnalysis.status]" is='#[MunitTools::equalTo("DISABLED")]'/>
+            <munit-tools:assert-that expression="#[payload.aiAnalysis.enabled]" is="#[MunitTools::equalTo(false)]"/>
         </munit:validation>
     </munit:test>
 

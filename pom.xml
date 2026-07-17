@@ -8,7 +8,7 @@
 	<packaging>mule-application</packaging>
 
 	<name>ai-api-governance-copilot</name>
-	<description>Deterministic Phase 1 API governance analysis for RAML and OpenAPI specifications.</description>
+	<description>Deterministic API governance analysis with an optional advisory AI-assisted review.</description>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

@@ -7,7 +7,7 @@
         http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
 
     <error-handler name="global-api-error-handler">
-        <on-error-continue type="APP:INVALID_REQUEST,APP:EMPTY_SPECIFICATION,APP:UNSUPPORTED_SPECIFICATION_TYPE,APIKIT:BAD_REQUEST,APIKIT:NOT_ACCEPTABLE,APIKIT:UNSUPPORTED_MEDIA_TYPE">
+        <on-error-continue type="APP:INVALID_REQUEST,APP:EMPTY_SPECIFICATION,APP:UNSUPPORTED_SPECIFICATION_TYPE,APP:SPECIFICATION_TOO_LARGE,APIKIT:BAD_REQUEST,APIKIT:NOT_ACCEPTABLE,APIKIT:UNSUPPORTED_MEDIA_TYPE">
             <set-variable variableName="httpStatus" value='#[if (error.errorType.identifier == "UNSUPPORTED_MEDIA_TYPE") 415 else 400]'/>
             <set-variable variableName="errorCode" value='#[error.errorType.namespace ++ ":" ++ error.errorType.identifier]'/>
             <set-variable variableName="errorMessage" value='#[if (error.errorType.namespace == "APP") error.description else "The API request is invalid."]'/>

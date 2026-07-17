@@ -1,0 +1,8 @@
+{
+  "model": "synthetic-test-model",
+  "message": {
+    "role": "assistant",
+    "content": "{not-valid-json"
+  },
+  "done": true
+}

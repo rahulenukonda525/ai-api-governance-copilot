@@ -8,5 +8,16 @@
   "securityScore": 100,
   "documentationScore": 100,
   "violations": [],
-  "recommendations": []
+  "recommendations": [],
+  "aiAnalysis": {
+    "enabled": false,
+    "status": "DISABLED",
+    "provider": "OLLAMA",
+    "model": "gemma3",
+    "summary": "AI-assisted review is disabled.",
+    "confidence": 0,
+    "findings": [],
+    "recommendations": [],
+    "advisoryDisclaimer": "AI-generated findings are advisory, may be incomplete or incorrect, and never replace the authoritative deterministic governance results or human review."
+  }
 }

@@ -14,6 +14,9 @@
             <when expression='#[!(["RAML", "OPENAPI"] contains upper((payload.specificationType default "") as String))]'>
                 <raise-error type="APP:UNSUPPORTED_SPECIFICATION_TYPE" description="Specification type must be RAML or OPENAPI."/>
             </when>
+            <when expression="#[sizeOf((payload.specification default '') as String) &gt; (Mule::p('ai.maxSpecificationChars') as Number)]">
+                <raise-error type="APP:SPECIFICATION_TOO_LARGE" description="Specification exceeds the configured analysis size limit."/>
+            </when>
         </choice>
         <set-variable variableName="specificationText" value='#[payload.specification as String]'/>
         <set-variable variableName="specificationType" value='#[upper(payload.specificationType as String)]'/>
@@ -21,6 +24,6 @@
                       value='#[if (isEmpty(trim((payload.fileName default "") as String))) if (vars.specificationType == "RAML") "unnamed-api.raml" else "unnamed-api.yaml" else payload.fileName as String]'/>
         <logger level="INFO"
                 category="io.github.governancecopilot.audit"
-                message='#[%dw 2.0&#10;output application/json&#10;---&#10;"Governance request validated; correlationId=" ++ correlationId ++ "; type=" ++ vars.specificationType ++ "; fileName=" ++ vars.fileName]'/>
+                message='#[%dw 2.0&#10;output application/json&#10;---&#10;"Governance request validated; correlationId=" ++ correlationId ++ "; type=" ++ vars.specificationType]'/>
     </sub-flow>
 </mule>
